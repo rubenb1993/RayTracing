@@ -3,6 +3,7 @@
 >>> import matplotlib.pyplot as plt
 >>> from mpl_toolkits.mplot3d import Axes3D
 >>> from math import pi
+>>> import sympy
 ...
 >>> %matplotlib inline
 ```
@@ -16,8 +17,9 @@
 ...
 >>> def determineFocus(c, n, t):
 ...
-...     f = Symbol('f')
-...
+...     f = sympy.Symbol('f')
+...     t = sympy.Matrix(t)
+...     t[-1] = f
 ...     product2 = np.identity(2)
 ...
 ...     for i in range(len(t)):
@@ -32,7 +34,7 @@
 ...
 ...         product2 = np.dot(R, product1)
 ...
-...     return solve(product1[0, 0], f)
+...     return sympy.solve(product1[0, 0], f)[0]
 ```
 
 ```python
@@ -62,7 +64,8 @@
 >>> #c = np.array([0.01, -0.02, -0.05, 0.08, 0.08, -0.08, 0])
 ... n = np.array([1,  1.4866, 1, 1.5584, 1])
 >>> t = np.array([0.0965, 87.2903, 87.4564, 157.1440, 0])
->>> t[-1] = 2000 - np.cumsum(t)[-1]
+>>> t = np.array(t)
+>>> t[-1] = determineFocus(c, n, t)
 ...
 >>> #define unit vector in z-dimonsion
 ... k = np.array([0, 0, 1])
@@ -144,6 +147,15 @@ scrolled: false
 ... plt.scatter(d[-3, 0, :], d[-3, 1, :], color = 'r')
 >>> plt.scatter(d[-2, 0, :], d[-2, 1, :], color = 'c')
 >>> plt.scatter(d[-1, 0, :], d[-1, 1, :])
+```
+
+```python
+>>> determineFocus(c, n, t)
+```
+
+```python
+>>> f = sympy.Symbol('f')
+>>> t[-1] = f
 ```
 
 ```python
