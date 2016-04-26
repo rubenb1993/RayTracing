@@ -5,7 +5,6 @@
 >>> from math import pi
 ...
 >>> %matplotlib inline
-
 ```
 
 ```python
@@ -14,6 +13,26 @@
 ...     x = rho * np.cos(phi)
 ...     y = rho * np.sin(phi)
 ...     return[x, y]
+...
+>>> def determineFocus(c, n, t):
+...
+...     f = Symbol('f')
+...
+...     product2 = np.identity(2)
+...
+...     for i in range(len(t)):
+...         T = np.array([[1, t[i]], [0, 1]])
+...
+...         product1 = np.dot(T, product2)
+...
+...         if i == len(t)-1:
+...             break
+...
+...         R = np.array([[1, 0], [c[i]*(n[i] - n[i+1])/n[i+1], n[i]/n[i+1]]])
+...
+...         product2 = np.dot(R, product1)
+...
+...     return solve(product1[0, 0], f)
 ```
 
 ```python
@@ -104,4 +123,8 @@ scrolled: true
 ... plt.scatter(d[-3, 0, :], d[-3, 1, :], color = 'r')
 >>> plt.scatter(d[-2, 0, :], d[-2, 1, :], color = 'c')
 >>> plt.scatter(d[-1, 0, :], d[-1, 1, :])
+```
+
+```python
+
 ```
