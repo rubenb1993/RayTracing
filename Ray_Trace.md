@@ -5,6 +5,7 @@
 >>> from math import pi
 ...
 >>> %matplotlib inline
+
 ```
 
 ```python
