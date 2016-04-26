@@ -40,27 +40,48 @@
 ... r = np.array([[0.5, 1, 1.5, 2] for i in range(25)])
 >>> theta = np.array([np.linspace(0,2*pi,25) for i in range(4)]).T
 >>> [X, Y] = pol2cart(r,theta)
->>> plt.scatter(X,Y)
->>> plt.figaspect(1)
+>>> # plt.scatter(X,Y)
+... # plt.figaspect(1)
 ...
->>> X = X.reshape(-1)
+... X = X.reshape(-1)
 >>> Y = Y.reshape(-1)
 ...
+>>> # X= [1, 0, -1]
+... # Y = [1, 0, -1]
 ...
->>> # #Random starting pattern (could also be set to circular if needed)
+... # #Random starting pattern (could also be set to circular if needed)
 ... # X = 3*(np.random.random(size = (100)) - 0.5)
 ... # Y = 3*(np.random.random(size = (100)) - 0.5)
 ```
 
 ```python
->>> c = np.array([0.1, -0.2, 0, 0, 0])
->>> n = np.array([1, 1.5, 1, 1, 1])
->>> t = np.array([10, 5, 5.5, 0.1, 0.1])
+>>> #c = np.array([0.1, -0.2, 0, -0.5, 0.8, 0, 0.001, -0.002])
+... r = np.array([1204.9085, -487.3933, -496.7340, -2435.0087])
+>>> c = 1/r
+>>> c= np.append(c,[0])
+>>> #c = np.array([0.01, -0.02, -0.05, 0.08, 0.08, -0.08, 0])
+... n = np.array([1,  1.4866, 1, 1.5584, 1])
+>>> t = np.array([0.0965, 87.2903, 87.4564, 157.1440, 0])
+>>> t[-1] = 2000 - np.cumsum(t)[-1]
 ...
 >>> #define unit vector in z-dimonsion
 ... k = np.array([0, 0, 1])
 >>> k_trans = np.array([0, 0, 1]) #Copy k manually due to k also being transposed if k_trans = k
 >>> k_trans.shape = (3,1)
+...
+>>> #position and angle vector (place,coordinate,beam#)
+... d = np.zeros(shape = (len(t)+1, 3, len(X)))
+>>> d[0,0] = X
+>>> d[0,1] = Y
+>>> u = np.zeros(shape = (len(t)+1, 3, len(X)))
+>>> u[0, :] = np.vstack(np.array([0, 0, 0]))
+>>> u[0,2] = np.sqrt(1 - u[0,0]**2 - u[0,1]**2) #calculate angle with z-axis based on x and y axes
+```
+
+```python
+>>> c = np.array([0.05, -0.05, 0, 0, 0, 0, 0, 0])
+>>> n = np.array([1, 1.5, 1, 1, 1, 1, 1, 1])
+>>> t = np.array([10, 1, 19.8])
 ...
 >>> #position and angle vector (place,coordinate,beam#)
 ... d = np.zeros(shape = (len(t)+1, 3, len(X)))
@@ -103,7 +124,7 @@
 ```
 
 ---
-scrolled: true
+scrolled: false
 ...
 
 ```python
