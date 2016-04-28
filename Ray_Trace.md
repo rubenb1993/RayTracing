@@ -2,21 +2,25 @@
 >>> import numpy as np
 >>> import matplotlib.pyplot as plt
 >>> from mpl_toolkits.mplot3d import Axes3D
->>> from math import pi
+>>> from scipy.optimize import differential_evolution
 >>> import sympy
+>>> import timeit
 ...
 >>> %matplotlib inline
 ```
 
 ```python
 >>> def pol2cart(rho, phi):
-...     "converts polar to cartesian coordinates"
+...     '''converts polar to cartesian coordinates'''
+...
 ...     x = rho * np.cos(phi)
 ...     y = rho * np.sin(phi)
+...
 ...     return[x, y]
 ...
->>> def determineFocus(c, n, t):
 ...
+>>> def paraxialFocus(c, n, t):
+...     '''Determine the focus in the paraxial limit'''
 ...     f = sympy.Symbol('f')
 ...     t = sympy.Matrix(t)
 ...     t[-1] = f
@@ -24,138 +28,298 @@
 ...
 ...     for i in range(len(t)):
 ...         T = np.array([[1, t[i]], [0, 1]])
-...
 ...         product1 = np.dot(T, product2)
-...
 ...         if i == len(t)-1:
 ...             break
 ...
 ...         R = np.array([[1, 0], [c[i]*(n[i] - n[i+1])/n[i+1], n[i]/n[i+1]]])
-...
 ...         product2 = np.dot(R, product1)
-...
 ...     return sympy.solve(product1[0, 0], f)[0]
-```
-
-```python
->>> #Circular starting pattern (could also be set to random if needed)
-... r = np.array([[0.5, 1, 1.5, 2] for i in range(25)])
->>> theta = np.array([np.linspace(0,2*pi,25) for i in range(4)]).T
->>> [X, Y] = pol2cart(r,theta)
->>> # plt.scatter(X,Y)
-... # plt.figaspect(1)
 ...
-... X = X.reshape(-1)
->>> Y = Y.reshape(-1)
 ...
->>> # X= [1, 0, -1]
-... # Y = [1, 0, -1]
+>>> def incomingBeam(Rmax, Nr, Ntheta, angle):
+...     # Circular starting pattern (could also be set to random if needed)
 ...
-... # #Random starting pattern (could also be set to circular if needed)
-... # X = 3*(np.random.random(size = (100)) - 0.5)
-... # Y = 3*(np.random.random(size = (100)) - 0.5)
-```
-
-```python
->>> #c = np.array([0.1, -0.2, 0, -0.5, 0.8, 0, 0.001, -0.002])
-... r = np.array([1204.9085, -487.3933, -496.7340, -2435.0087])
->>> c = 1/r
->>> c= np.append(c,[0])
->>> #c = np.array([0.01, -0.02, -0.05, 0.08, 0.08, -0.08, 0])
-... n = np.array([1,  1.4866, 1, 1.5584, 1])
->>> t = np.array([0.0965, 87.2903, 87.4564, 157.1440, 0])
->>> t = np.array(t)
->>> t[-1] = determineFocus(c, n, t)
+>>> #     r = np.array([np.linspace(0.5, Rmax, Nr) for i in range(Ntheta)])
+... #     theta = np.array([np.linspace(0, 2*np.pi, Ntheta) for i in range(Nr)]).T
+... #     [X, Y] = pol2cart(r, theta)
+...     r = np.array([])
+...     theta = np.array([])
+...     for i in range(Nr):
+...         R = (i+1)*Rmax/Nr
+...         j = (i+1)*5
+...         a = np.array([R]*j)
+...         r = np.append(r,a)
+...         b = np.linspace(0, 2*np.pi, j)
+...         theta = np.append(theta, b)
 ...
->>> #define unit vector in z-dimonsion
-... k = np.array([0, 0, 1])
->>> k_trans = np.array([0, 0, 1]) #Copy k manually due to k also being transposed if k_trans = k
->>> k_trans.shape = (3,1)
+...     [X, Y] = pol2cart(r, theta)
 ...
->>> #position and angle vector (place,coordinate,beam#)
-... d = np.zeros(shape = (len(t)+1, 3, len(X)))
->>> d[0,0] = X
->>> d[0,1] = Y
->>> u = np.zeros(shape = (len(t)+1, 3, len(X)))
->>> u[0, :] = np.vstack(np.array([0, 0, 0]))
->>> u[0,2] = np.sqrt(1 - u[0,0]**2 - u[0,1]**2) #calculate angle with z-axis based on x and y axes
-```
-
-```python
->>> c = np.array([0.05, -0.05, 0, 0, 0, 0, 0, 0])
->>> n = np.array([1, 1.5, 1, 1, 1, 1, 1, 1])
->>> t = np.array([10, 1, 19.8])
+...     X = X.reshape(-1)
+...     Y = Y.reshape(-1)
 ...
->>> #position and angle vector (place,coordinate,beam#)
-... d = np.zeros(shape = (len(t)+1, 3, len(X)))
->>> d[0,0] = X
->>> d[0,1] = Y
->>> u = np.zeros(shape = (len(t)+1, 3, len(X)))
->>> u[0, :] = np.vstack(np.array([0, 0, 0]))
->>> u[0,2] = np.sqrt(1 - u[0,0]**2 - u[0,1]**2) #calculate angle with z-axis based on x and y axes
-```
-
-```python
->>> #Compute the ray paths
-... for i in range(len(t)):
-...     #Algorithm to obtain new positions
-...     e = t[i]*np.dot(k, u[i]) - np.sum(d[0]*u[0], axis = 0) #a scalar for obtaining the total travel distance T
-...     #Mz = np.dot(k, d[i]) + e*np.dot(k, u[i]) - t[i] #z component of M vector
-...     M = d[i] + e*u[i] - t[i]*k_trans
-...     Mz = M[2]
-...     M2 = np.sum(M*M, axis = 0)
-...     cos_inc_angle = np.sqrt(u[i,2]**2 - c[i]*(c[i]*M2 - 2*Mz))
-...     T = e + (c[i]*M2 - 2*Mz)/(u[i,2] + cos_inc_angle) #total path length to interface
-...     #Translate d over distance T. Remove z-component to be in the plane perpendicular to z at point z=ti
-...     d[i+1] = d[i] + T*u[i] - t[i]*k_trans
+...     # Define unit vector in z-dimension
+...     k = np.array([[0, 0, 1]])
 ...
-...     #At the last plane, don't calculate angles
-...     if i == len(t)-1:
-...         break
+...     # Position and angle vector (place, coordinate, beam)
+...     d = np.zeros(shape = (Nsteps+1, 3, len(X)))
+...     d[0, 0] = X
+...     d[0, 1] = Y
 ...
-...     #Algorithm to calculate new angle due to refraction
-...     mu = n[i]/n[i+1]
-...     cos_out_angle = np.sqrt(1 - mu**2 * (1 - cos_inc_angle**2))
-...     g = cos_out_angle - mu*cos_inc_angle
-...     u[i+1] = mu*u[i] - c[i]*g*d[i+1] + g*k_trans
+...     u = np.zeros(shape = (Nsteps+1, 3, len(X)))
+...     u[0, :] = np.vstack(np.array([angle, 0, 0]))
+...     u[0, 2] = np.sqrt(1 - u[0, 0]**2 - u[0, 1]**2) # Calculate angle with z-axis based on x and y axes
 ...
->>> #Adjust distance vector to include z-distance
-... distance = np.cumsum(t)
->>> z_addition = np.vstack((np.zeros(3),np.outer(distance,k)))
->>> z_addition = np.transpose(np.tile(z_addition,(len(d[0,0,:]),1,1)),axes = [1,2,0])
->>> d = d + z_addition
+...     return d, u, k
+...
+...
+>>> def traceRays(c, t, n, d, u, k):
+...     '''Compute the ray paths'''
+...
+...     for i in range(Nsteps):
+...         # Algorithm to obtain new positions
+...         e = t[i]*np.dot(k, u[i]) - np.sum(d[0]*u[0], axis = 0) # A scalar for obtaining the total travel distance T
+...         M = d[i] + e*u[i] - t[i]*k.T
+...         M2 = np.sum(M*M, axis = 0)
+...         cos_inc_angle = np.sqrt(u[i, 2]**2 - c[i]*(c[i]*M2 - 2*M[2]))
+...         T = e + (c[i]*M2 - 2*M[2])/(u[i, 2] + cos_inc_angle) # Total path length to interface
+...         # Translate d over distance T. Remove z-component to be in the plane perpendicular to z at point z=ti
+...         d[i+1] = d[i] + T*u[i] - t[i]*k.T
+...
+...         # At the last plane, don't calculate the new angles
+...         if i == Nsteps-1:
+...             break
+...
+...         # Algorithm to calculate new angle due to refraction
+...         mu = n[i]/n[i+1]
+...         cos_out_angle = np.sqrt(1 - mu**2 * (1 - cos_inc_angle**2))
+...         g = cos_out_angle - mu*cos_inc_angle
+...         u[i+1] = mu*u[i] - c[i]*g*d[i+1] + g*k.T
+...
+...     return d
+...
+...
+>>> def fitness(d):
+...     '''Calculate the fitness of the spot in the image plane'''
+...     sumDistance = 0
+...     N = len(d[0, 0, :]) # Number of rays
+...
+...     for i in range(N):
+...         for j in range(i+1, N):
+...             sumDistance += (d[-1, 1, i] - d[-1, 1, j])**2 + (d[-1, 2, i] - d[-1, 2, j])**2
+...
+...     fitness = np.sqrt(2/(3*N*(3*N-1)) * sumDistance)
+...     return fitness
+...
+>>> def fitness_vector(d):
+...     '''Calculate the fitness of the spot in the image plane'''
+...     N = len(d[0, 0, :]) # Number of rays
+...     ind = np.triu_indices(N, k=1) #create array of upper triangular matrix indices
+...     dist = (d[-1, 1, ind[0]] - d[-1, 1, ind[1]])**2 + (d[-1, 0, ind[0]] - d[-1, 0, ind[1]])**2 #create distance vector for i > j
+...     sumDistance = np.sum(dist)
+...     fitness = np.sqrt(2/(3*N*(3*N-1)) * sumDistance)
+...     return fitness
+...
+>>> def costFunction(x, plotyn=False):
+...     middle = int(len(x)/2)
+...     c = x[:Nsteps]
+...     t = x[Nsteps:]
+...     angles= np.sin([0, 0.0075, 0.0150, 0.0225, 0.0300])/10
+...     weights = [0.5, 0.125, 0.125, 0.125, 0.125]
+...     fitnessFactor = 0
+...     for j in range(len(angles)):
+...         d, u, k = incomingBeam(7, 10, 25, angles[j])
+...         d = traceRays(c, t, n, d, u, k)
+...         fitnessFactor += weights[j] * fitness_vector(d)
+...         if plotyn == True:
+...             plotResults(t, d, k)
+...
+...     return fitnessFactor
+...
+...
+>>> def plotResults(t, d, k):
+...
+...     # Adjust distance vector to include z-distance
+...     distance = np.cumsum(t)
+...     z_addition = np.vstack((np.zeros(3), np.outer(distance, k)))
+...     z_addition = np.transpose(np.tile(z_addition, (len(d[0, 0, :]), 1 , 1)), axes = [1, 2, 0])
+...     d2 = d + z_addition
+...
+...     # Plot all rays (not smart for 1000 rays!)
+...     fig = plt.figure()
+...     ax = fig.add_subplot(111, projection='3d')
+...     for i in range(len(d[0, 0, :])):
+...         ax.plot(d2[:, 1, i], d2[:, 2, i], d2[:, 0, i])
+...     ax.set_xlabel('$y$')
+...     ax.set_ylabel('$z$')
+...     ax.set_zlabel('$x$')
+...     plt.show()
+...
+...     #fig2 = plt.figure()
+...     ax = plt.subplot(111)
+...     ax.scatter(d2[-1,0,:], d2[-1,1,:])
+...     #axes = plt.gca()
+...     ax.set_xlim([min(d2[-1,0,:]) - (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2, max(d2[-1,0,:]) + (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2])
+...     ax.set_ylim([min(d2[-1,1,:]) - (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2, max(d2[-1,1,:]) + (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2])
+...     plt.show()
+...     return
 ```
 
 ---
-scrolled: false
+scrolled: true
 ...
 
 ```python
->>> #plot all rays (not smart for 1000 rays!)
+>>> # c = np.array([1/1204.9085, 1/-487.3933, 1/-496.7340, 1/-2435.0087, 0])
+... # t = np.array([0.0965, 87.2903, 87.4564, 157.1440, 0])
+... # t[-1] = paraxialFocus(c, n, t)
+...
+... n = np.array([1,  1.4866, 1, 1.5584, 1])
+>>> Nsteps = len(n)
+...
+>>> bounds = [(1/300, 1/1700), (-1/300, -1/1700), (-1/1700, -1/300), (-1/1700, -1/300), (0, 0),
+...           (0, 0), (0, 300), (0, 300), (0, 300), (300, 1500)]
+...
+>>> result = differential_evolution(costFunction, bounds, maxiter = 100)
+>>> print(result)
+...
+>>> fitnessFactor = costFunction(result.x, plotyn=True)
+...
+>>> print('\n fitnessFactor', fitnessFactor)
+>>> print('\n R', 1/result.x[:len(n)-1])
+>>> print('\n t', result.x[len(n):])
+ success: False
+     jac: array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.])
+    nfev: 15150
+     nit: 100
+ message: 'Maximum number of iterations has been exceeded.'
+       x: array([  6.99568675e-04,  -6.36113165e-04,  -1.38858963e-03,
+        -2.72773492e-03,   0.00000000e+00,   0.00000000e+00,
+         2.57666628e+02,   1.21537996e+02,   1.16066645e+02,
+         6.76065336e+02])
+     fun: array(0.0)
+/Users/rubenbiesheuvel/anaconda/lib/python3.5/site-packages/scipy/optimize/_differentialevolution.py:572: RuntimeWarning: invalid value encountered in true_divide
+  return (parameters - self.__scale_arg1) / self.__scale_arg2 + 0.5
+
+
+
+
+
+
+
+
+
+
+
+ fitnessFactor 0.000800832555613
+
+ R [ 1429.45222738 -1572.04732531  -720.15516874  -366.604538  ]
+
+ t [   0.          257.66662764  121.53799572  116.06664512  676.06533572]
+```
+
+```python
+>>> n = np.array([1,  1.4866, 1, 1.5584, 1])
+>>> c = np.array([1/1204.9085, 1/-487.3933, 1/-496.7340, 1/-2435.0087, 0])
+>>> t = np.array([0.0965, 87.2903, 87.4564, 157.1440, 0])
+>>> t[-1] = paraxialFocus(c, n, t)
+...
+>>> Nsteps = len(n)
+...
+>>> d, u, k = incomingBeam()
+>>> d = traceRays(c, t, n, d, u, k)
+>>> fitnessFactor = fitness(d)
+...
+>>> # Adjust distance vector to include z-distance
+... distance = np.cumsum(t)
+>>> z_addition = np.vstack((np.zeros(3), np.outer(distance, k)))
+>>> z_addition = np.transpose(np.tile(z_addition, (len(d[0, 0, :]), 1 , 1)), axes = [1, 2, 0])
+>>> d2 = d + z_addition
+...
+>>> # Plot all rays (not smart for 1000 rays!)
 ... fig = plt.figure()
 >>> ax = fig.add_subplot(111, projection='3d')
->>> for i in range(len(X)):
-...     ax.plot(d[:,1,i],d[:,2,i],d[:,0,i])
-...
->>> ax.set_xlabel('X label')
->>> ax.set_ylabel('Y Label')
->>> ax.set_zlabel('Z Label')
+>>> for i in range(len(d[0, 0, :])):
+...     ax.plot(d2[:, 1, i], d2[:, 2, i], d2[:, 0, i])
+>>> ax.set_xlabel('$y$')
+>>> ax.set_ylabel('$z$')
+>>> ax.set_zlabel('$x$')
+>>> plt.show()
 ```
 
 ```python
+>>> %matplotlib inline
 >>> #plot a scatter plot through the focus
-... plt.scatter(d[-3, 0, :], d[-3, 1, :], color = 'r')
->>> plt.scatter(d[-2, 0, :], d[-2, 1, :], color = 'c')
->>> plt.scatter(d[-1, 0, :], d[-1, 1, :])
+... #plt.scatter(d[-3, 0, :], d[-3, 1, :], color = 'r')
+... #plt.scatter(d[-2, 0, :], d[-2, 1, :], color = 'c')
+... plt.scatter(d[-1, 0, :], d[-1, 1, :])
+>>> plt.show()
 ```
 
 ```python
->>> determineFocus(c, n, t)
+>>> ind = np.triu_indices(5, k=1)
+>>> print(ind)
+(array([0, 0, 0, 0, 1, 1, 1, 2, 2, 3]), array([1, 2, 3, 4, 2, 3, 4, 3, 4, 4]))
 ```
 
 ```python
->>> f = sympy.Symbol('f')
->>> t[-1] = f
+>>> timeit.timeit(fitness(d))
+```
+
+```python
+>>> %%timeit
+... fitness(d)
+100 loops, best of 3: 7.51 ms per loop
+```
+
+```python
+>>> %%timeit
+... fitness_vector(d)
+10000 loops, best of 3: 155 µs per loop
+```
+
+```python
+>>> fig2 = plt.figure()
+>>> ax = fig.add_subplot(111)
+>>> ax.scatter(d2[-1,0,:], d2[-1,1,:])
+>>> axes = plt.gca()
+>>> print(d2.shape)
+>>> #axes.set_xlim([min(d2[-1,0,:])*1.5, max(d2[-1,0,:])*1.5])
+... #axes.set_ylim([min(d2[-1,1,:])*1.5, max(d2[-1,1,:])*1.5])
+(6, 3, 100)
+```
+
+```python
+>>> plt.scatter(d2[0,0,:], d2[0,1,:])
+```
+
+```python
+>>> print(min(d2[-1,0,:])*1.5)
+>>> print(max(d2[-1,0,:])*1.5)
+>>> print(min(d2[-1,1,:])*1.5)
+>>> print(max(d2[-1,1,:])*1.5)
+-0.00012170588072
+0.00012004597114
+-0.000121290193434
+0.000121290193434
+```
+
+```python
+>>> np.sin([0, 0.0075, 0.0150, 0.0225, 0.0300])
+array([ 0.        ,  0.00749993,  0.01499944,  0.0224981 ,  0.0299955 ])
+```
+
+```python
+>>> np.triu_indices(3, k=1)
+(array([0, 0, 1]), array([1, 2, 2]))
+```
+
+```python
+>>> d[-1, 2, ind[0]]
+array([  2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
+         2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
+         2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
+         2.27373675e-13])
 ```
 
 ```python
