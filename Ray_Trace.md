@@ -11,16 +11,17 @@
 
 ```python
 >>> def pol2cart(rho, phi):
-...     '''converts polar to cartesian coordinates'''
-...
+...     '''converts polar to cartesian coordinates
+...     rho and phi are both scalars, or both vectors with same size.
+...     Returns 2 arrays x and y with the same size as rho and phi'''
 ...     x = rho * np.cos(phi)
 ...     y = rho * np.sin(phi)
-...
-...     return[x, y]
+...     return x, y
 ...
 ...
 >>> def paraxialFocus(c, n, t):
-...     '''Determine the focus in the paraxial limit'''
+...     '''Determine the focus in the paraxial limit by working with the matrix convention.
+...     Returns the '''
 ...     f = sympy.Symbol('f')
 ...     t = sympy.Matrix(t)
 ...     t[-1] = f
@@ -40,23 +41,16 @@
 >>> def incomingBeam(Rmax, Nr, Ntheta, angle):
 ...     # Circular starting pattern (could also be set to random if needed)
 ...
->>> #     r = np.array([np.linspace(0.5, Rmax, Nr) for i in range(Ntheta)])
-... #     theta = np.array([np.linspace(0, 2*np.pi, Ntheta) for i in range(Nr)]).T
-... #     [X, Y] = pol2cart(r, theta)
 ...     r = np.array([])
 ...     theta = np.array([])
 ...     for i in range(Nr):
 ...         R = (i+1)*Rmax/Nr
-...         j = (i+1)*5
+...         j = (i+1)*5 #increase of 5 points per row
 ...         a = np.array([R]*j)
 ...         r = np.append(r,a)
-...         b = np.linspace(0, 2*np.pi, j)
+...         b = np.linspace(0, 2*np.pi, j, endpoint = False)
 ...         theta = np.append(theta, b)
-...
-...     [X, Y] = pol2cart(r, theta)
-...
-...     X = X.reshape(-1)
-...     Y = Y.reshape(-1)
+...     X, Y = pol2cart(r, theta)
 ...
 ...     # Define unit vector in z-dimension
 ...     k = np.array([[0, 0, 1]])
@@ -73,9 +67,8 @@
 ...     return d, u, k
 ...
 ...
->>> def traceRays(c, t, n, d, u, k):
+>>> def traceRays(c, t, n, d, u, k, Nsteps):
 ...     '''Compute the ray paths'''
-...
 ...     for i in range(Nsteps):
 ...         # Algorithm to obtain new positions
 ...         e = t[i]*np.dot(k, u[i]) - np.sum(d[0]*u[0], axis = 0) # A scalar for obtaining the total travel distance T
@@ -98,20 +91,7 @@
 ...
 ...     return d
 ...
-...
 >>> def fitness(d):
-...     '''Calculate the fitness of the spot in the image plane'''
-...     sumDistance = 0
-...     N = len(d[0, 0, :]) # Number of rays
-...
-...     for i in range(N):
-...         for j in range(i+1, N):
-...             sumDistance += (d[-1, 1, i] - d[-1, 1, j])**2 + (d[-1, 2, i] - d[-1, 2, j])**2
-...
-...     fitness = np.sqrt(2/(3*N*(3*N-1)) * sumDistance)
-...     return fitness
-...
->>> def fitness_vector(d):
 ...     '''Calculate the fitness of the spot in the image plane'''
 ...     N = len(d[0, 0, :]) # Number of rays
 ...     ind = np.triu_indices(N, k=1) #create array of upper triangular matrix indices
@@ -120,17 +100,15 @@
 ...     fitness = np.sqrt(2/(3*N*(3*N-1)) * sumDistance)
 ...     return fitness
 ...
->>> def costFunction(x, plotyn=False):
-...     middle = int(len(x)/2)
+>>> def costFunction(x, *args):
+...     Nsteps = len(n)
 ...     c = x[:Nsteps]
 ...     t = x[Nsteps:]
-...     angles= np.sin([0, 0.0075, 0.0150, 0.0225, 0.0300])/10
-...     weights = [0.5, 0.125, 0.125, 0.125, 0.125]
 ...     fitnessFactor = 0
 ...     for j in range(len(angles)):
-...         d, u, k = incomingBeam(7, 10, 25, angles[j])
-...         d = traceRays(c, t, n, d, u, k)
-...         fitnessFactor += weights[j] * fitness_vector(d)
+...         d, u, k = incomingBeam(Rmax, Nr, Ntheta, angles[j])
+...         d = traceRays(c, t, n, d, u, k, Nsteps)
+...         fitnessFactor += weights[j] * fitness(d)
 ...         if plotyn == True:
 ...             plotResults(t, d, k)
 ...
@@ -170,34 +148,36 @@ scrolled: true
 ...
 
 ```python
->>> # c = np.array([1/1204.9085, 1/-487.3933, 1/-496.7340, 1/-2435.0087, 0])
-... # t = np.array([0.0965, 87.2903, 87.4564, 157.1440, 0])
-... # t[-1] = paraxialFocus(c, n, t)
-...
-... n = np.array([1,  1.4866, 1, 1.5584, 1])
->>> Nsteps = len(n)
+>>> n = np.array([1,  1.4866, 1, 1.5584, 1])
+>>> angles= np.sin([0, 0.0075, 0.0150, 0.0225, 0.0300])/10
+>>> weights = [0.5, 0.125, 0.125, 0.125, 0.125]
+>>> Rmax = 5
+>>> Nr = 4
+>>> Ntheta = 25
+>>> plotyn = False
 ...
 >>> bounds = [(1/300, 1/1700), (-1/300, -1/1700), (-1/1700, -1/300), (-1/1700, -1/300), (0, 0),
 ...           (0, 0), (0, 300), (0, 300), (0, 300), (300, 1500)]
 ...
->>> result = differential_evolution(costFunction, bounds, maxiter = 100)
+>>> result = differential_evolution(costFunction, bounds, args=(angles, weights, Rmax, Nr, Ntheta, n, plotyn), maxiter = 10)
 >>> print(result)
 ...
->>> fitnessFactor = costFunction(result.x, plotyn=True)
+>>> plotyn = True
+>>> fitnessFactor = costFunction(result.x, angles, weights, Rmax, Nr, Ntheta, n, plotyn)
 ...
 >>> print('\n fitnessFactor', fitnessFactor)
 >>> print('\n R', 1/result.x[:len(n)-1])
 >>> print('\n t', result.x[len(n):])
- success: False
-     jac: array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.])
-    nfev: 15150
-     nit: 100
- message: 'Maximum number of iterations has been exceeded.'
-       x: array([  6.99568675e-04,  -6.36113165e-04,  -1.38858963e-03,
-        -2.72773492e-03,   0.00000000e+00,   0.00000000e+00,
-         2.57666628e+02,   1.21537996e+02,   1.16066645e+02,
-         6.76065336e+02])
      fun: array(0.0)
+ message: 'Maximum number of iterations has been exceeded.'
+       x: array([  2.75109745e-03,  -1.29367548e-03,  -2.65831419e-03,
+        -6.33708473e-04,   0.00000000e+00,   0.00000000e+00,
+         2.26488093e+02,   7.29806069e+01,   9.12394176e+01,
+         5.69609632e+02])
+    nfev: 1650
+     jac: array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.])
+     nit: 10
+ success: False
 /Users/rubenbiesheuvel/anaconda/lib/python3.5/site-packages/scipy/optimize/_differentialevolution.py:572: RuntimeWarning: invalid value encountered in true_divide
   return (parameters - self.__scale_arg1) / self.__scale_arg2 + 0.5
 
@@ -211,11 +191,11 @@ scrolled: true
 
 
 
- fitnessFactor 0.000800832555613
+ fitnessFactor 0.0003825496873
 
- R [ 1429.45222738 -1572.04732531  -720.15516874  -366.604538  ]
+ R [  363.49130396  -772.99138394  -376.17825715 -1578.01267155]
 
- t [   0.          257.66662764  121.53799572  116.06664512  676.06533572]
+ t [   0.          226.48809277   72.98060692   91.2394176   569.60963236]
 ```
 
 ```python
@@ -320,6 +300,10 @@ array([  2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
          2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
          2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
          2.27373675e-13])
+```
+
+```python
+
 ```
 
 ```python
