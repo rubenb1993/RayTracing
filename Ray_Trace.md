@@ -4,9 +4,8 @@
 >>> from mpl_toolkits.mplot3d import Axes3D
 >>> from scipy.optimize import differential_evolution
 >>> import sympy
->>> import timeit
 ...
->>> %matplotlib inline
+>>> %matplotlib notebook
 ```
 
 ```python
@@ -18,8 +17,8 @@
 ...
 ...     return[x, y]
 ...
-...
->>> def paraxialFocus(c, n, t):
+>>> # hier doen we niks mee
+... def paraxialFocus(c, n, t):
 ...     '''Determine the focus in the paraxial limit'''
 ...     f = sympy.Symbol('f')
 ...     t = sympy.Matrix(t)
@@ -67,7 +66,7 @@
 ...     d[0, 1] = Y
 ...
 ...     u = np.zeros(shape = (Nsteps+1, 3, len(X)))
-...     u[0, :] = np.vstack(np.array([angle, 0, 0]))
+...     u[0, :] = np.array([[angle], [0], [0]])
 ...     u[0, 2] = np.sqrt(1 - u[0, 0]**2 - u[0, 1]**2) # Calculate angle with z-axis based on x and y axes
 ...
 ...     return d, u, k
@@ -106,7 +105,7 @@
 ...
 ...     for i in range(N):
 ...         for j in range(i+1, N):
-...             sumDistance += (d[-1, 1, i] - d[-1, 1, j])**2 + (d[-1, 2, i] - d[-1, 2, j])**2
+...             sumDistance += (d[-1, 1, i] - d[-1, 1, j])**2 + (d[-1, 0, i] - d[-1, 0, j])**2
 ...
 ...     fitness = np.sqrt(2/(3*N*(3*N-1)) * sumDistance)
 ...     return fitness
@@ -115,30 +114,75 @@
 ...     '''Calculate the fitness of the spot in the image plane'''
 ...     N = len(d[0, 0, :]) # Number of rays
 ...     ind = np.triu_indices(N, k=1) #create array of upper triangular matrix indices
-...     dist = (d[-1, 1, ind[0]] - d[-1, 1, ind[1]])**2 + (d[-1, 0, ind[0]] - d[-1, 0, ind[1]])**2 #create distance vector for i > j
+...
+...     # create distance vector for i > j
+...     dist = (d[-1, 0, ind[0]] - d[-1, 0, ind[1]])**2 + (d[-1, 1, ind[0]] - d[-1, 1, ind[1]])**2
 ...     sumDistance = np.sum(dist)
 ...     fitness = np.sqrt(2/(3*N*(3*N-1)) * sumDistance)
+...
 ...     return fitness
 ...
 >>> def costFunction(x, plotyn=False):
-...     middle = int(len(x)/2)
 ...     c = x[:Nsteps]
 ...     t = x[Nsteps:]
-...     angles= np.sin([0, 0.0075, 0.0150, 0.0225, 0.0300])/10
+...     angles = np.array([0.00300, 0.00225, 0.00150, 0.00075, 0])
 ...     weights = [0.5, 0.125, 0.125, 0.125, 0.125]
+...
 ...     fitnessFactor = 0
-...     for j in range(len(angles)):
-...         d, u, k = incomingBeam(7, 10, 25, angles[j])
-...         d = traceRays(c, t, n, d, u, k)
-...         fitnessFactor += weights[j] * fitness_vector(d)
-...         if plotyn == True:
-...             plotResults(t, d, k)
+...     spot = np.zeros((len(n), len(angles), 3, 275))
+...
+...     for i in range(len(n)):
+...         for j in range(len(angles)):
+...             d, u, k = incomingBeam(7, 10, 25, angles[j])
+...             d = traceRays(c, t, n[i], d, u, k)
+...             spot[i, j] = d[-1]
+...             fitnessFactor += weights[j] * fitness_vector(d)
+...
+...     if plotyn == True:
+...         plotSpot(spot, angles)
+...         plotRays(t, d, k)
 ...
 ...     return fitnessFactor
 ...
+>>> def plotSpot(spot, angles):
 ...
->>> def plotResults(t, d, k):
+...     fig, axarr = plt.subplots(len(angles), len(n)+1, figsize=(12, 15))
+...     wavelengths = [0.486, 0.546, 0.656]
 ...
+...     for i in range(len(spot)):
+...         axarr[0, i].set_title(r'$\lambda$={}'.format(wavelengths[i]), size=16)
+...         for j in range(len(spot[0, :])):
+...             axarr[j, i].scatter(spot[i, j, 0], spot[i, j, 1])
+...
+...             axarr[j, -1].set_title(r'$\theta_i$={0:3f}'.format(angles[j]), size=16)
+...             axarr[j, -1].axis('off')
+...
+...             dx = [spot[i, j, 0].min(), spot[i, j, 0].max()]
+...             dy = [spot[i, j, 1].min(), spot[i, j, 1].max()]
+...             axarr[j, i].set_xlim(dx)
+...             axarr[j, i].set_ylim(dy)
+...             axarr[j, i].set_xticks(dx)
+...             axarr[j, i].set_yticks(dy)
+...             plt.axis('equal')
+>>> #             axarr[j, i].set_xlim([spot[i, j, 0].min(), spot[i, j, 0].max()])
+... #             axarr[j, i].set_ylim([spot[i, j, 1].min(), spot[i, j, 1].max()])
+...
+...
+... #             dx = min(spot[:, :, 0]) - max(spot[:, :, 0])
+... #             dy = min(spot[:, :, 1]) - max(spot[:, :, 1])
+...
+... #             axarr[j, i].set_xlim([])
+... #             axarr[j, i].set_ylim([])
+...
+... #             axarr[j, i].set_xlim([min(d2[-1,0,:]) - (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2, max(d2[-1,0,:]) + (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2])
+... #             axarr[j, i].set_ylim([min(d2[-1,1,:]) - (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2, max(d2[-1,1,:]) + (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2])
+...
+...     fig.tight_layout()
+...     plt.show()
+...     return
+...
+...
+>>> def plotRays(t, d, k):
 ...     # Adjust distance vector to include z-distance
 ...     distance = np.cumsum(t)
 ...     z_addition = np.vstack((np.zeros(3), np.outer(distance, k)))
@@ -146,21 +190,14 @@
 ...     d2 = d + z_addition
 ...
 ...     # Plot all rays (not smart for 1000 rays!)
-...     fig = plt.figure()
+...     fig = plt.figure(figsize=(12, 8))
 ...     ax = fig.add_subplot(111, projection='3d')
 ...     for i in range(len(d[0, 0, :])):
 ...         ax.plot(d2[:, 1, i], d2[:, 2, i], d2[:, 0, i])
 ...     ax.set_xlabel('$y$')
 ...     ax.set_ylabel('$z$')
 ...     ax.set_zlabel('$x$')
-...     plt.show()
-...
-...     #fig2 = plt.figure()
-...     ax = plt.subplot(111)
-...     ax.scatter(d2[-1,0,:], d2[-1,1,:])
-...     #axes = plt.gca()
-...     ax.set_xlim([min(d2[-1,0,:]) - (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2, max(d2[-1,0,:]) + (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2])
-...     ax.set_ylim([min(d2[-1,1,:]) - (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2, max(d2[-1,1,:]) + (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2])
+>>> #     fig.tight_layout()
 ...     plt.show()
 ...     return
 ```
@@ -170,156 +207,62 @@ scrolled: true
 ...
 
 ```python
->>> # c = np.array([1/1204.9085, 1/-487.3933, 1/-496.7340, 1/-2435.0087, 0])
-... # t = np.array([0.0965, 87.2903, 87.4564, 157.1440, 0])
-... # t[-1] = paraxialFocus(c, n, t)
+>>> # Index of refraction for the common N-BK7 (SCHOTT) glass at wavelengths:
+... n = np.array([[1, 1.5224, 1, 1.5224, 1, 1.5224, 1], # 0.486 um
+...               [1, 1.5187, 1, 1.5187, 1, 1.5187, 1], # 0.546 um
+...               [1, 1.5143, 1, 1.5143, 1, 1.5143, 1]]) # 0.656 um
 ...
-... n = np.array([1,  1.4866, 1, 1.5584, 1])
->>> Nsteps = len(n)
+>>> Nsteps = len(n[0, :])
 ...
->>> bounds = [(1/300, 1/1700), (-1/300, -1/1700), (-1/1700, -1/300), (-1/1700, -1/300), (0, 0),
-...           (0, 0), (0, 300), (0, 300), (0, 300), (300, 1500)]
+>>> bounds = [(1/1700, 1/300), (-1/300, -1/1700), (-1/300, -1/1700), (1/1700, 1/300), (1/1700, 1/300), (-1/300, -1/1700), (0, 0),
+...           (0, 0), (0, 300), (0, 300), (0, 300), (0, 300), (0, 300), (1000, 1500)]
 ...
->>> result = differential_evolution(costFunction, bounds, maxiter = 100)
+>>> result = differential_evolution(costFunction, bounds, maxiter = 1)
 >>> print(result)
 ...
 >>> fitnessFactor = costFunction(result.x, plotyn=True)
 ...
 >>> print('\n fitnessFactor', fitnessFactor)
->>> print('\n R', 1/result.x[:len(n)-1])
->>> print('\n t', result.x[len(n):])
- success: False
-     jac: array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.])
-    nfev: 15150
-     nit: 100
+>>> print('\n R', 1/result.x[:Nsteps-1])
+>>> print('\n t', result.x[Nsteps:])
+     fun: 0.059585556463146103
  message: 'Maximum number of iterations has been exceeded.'
-       x: array([  6.99568675e-04,  -6.36113165e-04,  -1.38858963e-03,
-        -2.72773492e-03,   0.00000000e+00,   0.00000000e+00,
-         2.57666628e+02,   1.21537996e+02,   1.16066645e+02,
-         6.76065336e+02])
-     fun: array(0.0)
-/Users/rubenbiesheuvel/anaconda/lib/python3.5/site-packages/scipy/optimize/_differentialevolution.py:572: RuntimeWarning: invalid value encountered in true_divide
+     jac: array([  1.21329955e+02,   1.15346319e+02,   6.22621611e+01,
+         7.24377067e+01,   1.04332405e+02,   1.73248503e+02,
+         3.38015033e-03,   9.29811783e-08,  -2.97255276e-05,
+        -1.94136374e-05,  -4.14390744e-06,   1.27597932e-04,
+         3.23761851e-05,   2.08381923e-05])
+     nit: 1
+       x: array([  2.06813341e-03,  -6.89156540e-04,  -2.90746915e-03,
+         3.27338851e-03,   9.25958207e-04,  -2.97022778e-03,
+         0.00000000e+00,   0.00000000e+00,   6.30480986e+01,
+         6.87576176e+01,   1.45066585e+02,   7.72613330e+01,
+         2.40637765e+02,   1.34002623e+03])
+ success: False
+    nfev: 780
+D:\Program Files\Anaconda3\lib\site-packages\scipy\optimize\_differentialevolution.py:572: RuntimeWarning: invalid value encountered in true_divide
   return (parameters - self.__scale_arg1) / self.__scale_arg2 + 0.5
 
 
 
 
 
+ fitnessFactor 0.0595855564631
 
+ R [  483.52780203 -1451.04913253  -343.94173999   305.49383224  1079.96234835
+  -336.67451538]
 
+ t [    0.            63.04809862    68.75761763   145.06658505    77.26133305
+   240.63776463  1340.02623116]
 
-
-
-
- fitnessFactor 0.000800832555613
-
- R [ 1429.45222738 -1572.04732531  -720.15516874  -366.604538  ]
-
- t [   0.          257.66662764  121.53799572  116.06664512  676.06533572]
+<IPython.core.display.Javascript object>
+<IPython.core.display.HTML object>
+<IPython.core.display.Javascript object>
+<IPython.core.display.HTML object>
 ```
 
 ```python
->>> n = np.array([1,  1.4866, 1, 1.5584, 1])
->>> c = np.array([1/1204.9085, 1/-487.3933, 1/-496.7340, 1/-2435.0087, 0])
->>> t = np.array([0.0965, 87.2903, 87.4564, 157.1440, 0])
->>> t[-1] = paraxialFocus(c, n, t)
-...
->>> Nsteps = len(n)
-...
->>> d, u, k = incomingBeam()
->>> d = traceRays(c, t, n, d, u, k)
->>> fitnessFactor = fitness(d)
-...
->>> # Adjust distance vector to include z-distance
-... distance = np.cumsum(t)
->>> z_addition = np.vstack((np.zeros(3), np.outer(distance, k)))
->>> z_addition = np.transpose(np.tile(z_addition, (len(d[0, 0, :]), 1 , 1)), axes = [1, 2, 0])
->>> d2 = d + z_addition
-...
->>> # Plot all rays (not smart for 1000 rays!)
-... fig = plt.figure()
->>> ax = fig.add_subplot(111, projection='3d')
->>> for i in range(len(d[0, 0, :])):
-...     ax.plot(d2[:, 1, i], d2[:, 2, i], d2[:, 0, i])
->>> ax.set_xlabel('$y$')
->>> ax.set_ylabel('$z$')
->>> ax.set_zlabel('$x$')
->>> plt.show()
-```
 
-```python
->>> %matplotlib inline
->>> #plot a scatter plot through the focus
-... #plt.scatter(d[-3, 0, :], d[-3, 1, :], color = 'r')
-... #plt.scatter(d[-2, 0, :], d[-2, 1, :], color = 'c')
-... plt.scatter(d[-1, 0, :], d[-1, 1, :])
->>> plt.show()
-```
-
-```python
->>> ind = np.triu_indices(5, k=1)
->>> print(ind)
-(array([0, 0, 0, 0, 1, 1, 1, 2, 2, 3]), array([1, 2, 3, 4, 2, 3, 4, 3, 4, 4]))
-```
-
-```python
->>> timeit.timeit(fitness(d))
-```
-
-```python
->>> %%timeit
-... fitness(d)
-100 loops, best of 3: 7.51 ms per loop
-```
-
-```python
->>> %%timeit
-... fitness_vector(d)
-10000 loops, best of 3: 155 µs per loop
-```
-
-```python
->>> fig2 = plt.figure()
->>> ax = fig.add_subplot(111)
->>> ax.scatter(d2[-1,0,:], d2[-1,1,:])
->>> axes = plt.gca()
->>> print(d2.shape)
->>> #axes.set_xlim([min(d2[-1,0,:])*1.5, max(d2[-1,0,:])*1.5])
-... #axes.set_ylim([min(d2[-1,1,:])*1.5, max(d2[-1,1,:])*1.5])
-(6, 3, 100)
-```
-
-```python
->>> plt.scatter(d2[0,0,:], d2[0,1,:])
-```
-
-```python
->>> print(min(d2[-1,0,:])*1.5)
->>> print(max(d2[-1,0,:])*1.5)
->>> print(min(d2[-1,1,:])*1.5)
->>> print(max(d2[-1,1,:])*1.5)
--0.00012170588072
-0.00012004597114
--0.000121290193434
-0.000121290193434
-```
-
-```python
->>> np.sin([0, 0.0075, 0.0150, 0.0225, 0.0300])
-array([ 0.        ,  0.00749993,  0.01499944,  0.0224981 ,  0.0299955 ])
-```
-
-```python
->>> np.triu_indices(3, k=1)
-(array([0, 0, 1]), array([1, 2, 2]))
-```
-
-```python
->>> d[-1, 2, ind[0]]
-array([  2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
-         2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
-         2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
-         2.27373675e-13])
 ```
 
 ```python
