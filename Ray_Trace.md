@@ -1,3 +1,27 @@
+# Ray Tracing and optimization of a Cooke-triplet
+
+By Ruben Biesheuvel and Aloys Erkelens
+
+This software looks to optimize the radii of curvature and distances between the lenses of a Cooke-Triplet in order to find the optimum configuration of these parameters to get the best focus for 3 different wavelengths.
+
+The optimization is done by minimizing the spot size in the focal plane. As this is done for 3 wavelengths, the following expression is obtained for the spot size [1]:
+
+$$ D = \left[ \frac{2}{3N(3N - 1)} \sum_{i<j} d_{i,j}^2  \right] ^{1/2}$$
+
+A parallel beam of N rays is taken for each wavelength and each angle specified w.r.t. the optical axis. The spot size D is weighted per angle, counting the rays with no angle to the optical axis strongest.
+
+Seeing that often CCDs are used in imaging, a straight image plane is taken for minimization.
+
+# References:
+
+[1] Van Leijenhorst, D. C., Lucasius, C. B., & Thijssen, J. M. (1996). Optical design with the aid of a genetic algorithm. $\textit{BioSystems}$, 37(3), 177-187.
+
+The cost function is structured as follows:
+    1. Initialze a beam of N parallel rays with angle theta
+    2. Trace the rays through the whole optical system
+    3. Determine the spot size acording to van Leijenhorst et al.
+    4. Sum spot size over all wavelengths and all angles
+
 ```python
 >>> import numpy as np
 >>> import matplotlib.pyplot as plt
@@ -110,6 +134,7 @@
 ...     Returns the scalar value for the fitness'''
 ...     N = len(d[0, 0, :]) # Number of rays
 ...     ind = np.triu_indices(N, k=1) #create array of upper triangular matrix indices
+...
 ...     #calculate distance vector for i > j
 ...     dist = (d[-1, 1, ind[0]] - d[-1, 1, ind[1]])**2 + (d[-1, 0, ind[0]] - d[-1, 0, ind[1]])**2
 ...     sumDistance = np.sum(dist)
@@ -118,7 +143,7 @@
 ...
 >>> def costFunction(x, *args):
 ...     """The cost function that has to be minimized. Takes vector x composed of curvatures (c) and distances (t).
-...     Additional arguments should be defined. These are: angles, weights, Rmax, Nr, Ntheta, n, plotyn.
+...     Additional arguments must be defined. These are: angles, weights, Rmax, Nr, Ntheta, n, plotyn.
 ...     See incomingBeam for the structure of Rmax, Nr and Ntheta.
 ...     angles is a vector with all the angles that have to be taken into account,
 ...     weights an equally long vector with their weights for the cost function.
@@ -157,10 +182,8 @@
 ...     ax.set_zlabel('$x$')
 ...     plt.show()
 ...
-...     #fig2 = plt.figure()
 ...     ax = plt.subplot(111)
 ...     ax.scatter(d2[-1,0,:], d2[-1,1,:])
-...     #axes = plt.gca()
 ...     ax.set_xlim([min(d2[-1,0,:]) - (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2, \
 ...                  max(d2[-1,0,:]) + (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2])
 ...     ax.set_ylim([min(d2[-1,1,:]) - (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2, \
