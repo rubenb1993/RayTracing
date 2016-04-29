@@ -159,11 +159,15 @@
 ...
 ...             dx = [spot[i, j, 0].min(), spot[i, j, 0].max()]
 ...             dy = [spot[i, j, 1].min(), spot[i, j, 1].max()]
+...             middle = (((dx[0]+dx[1])/2), (dy[0]+dy[1])/2)
 ...             axarr[j, i].set_xlim(dx)
 ...             axarr[j, i].set_ylim(dy)
 ...             axarr[j, i].set_xticks(dx)
 ...             axarr[j, i].set_yticks(dy)
 ...             plt.axis('equal')
+...             circle = plt.Circle(middle,wavelengths[i]/(2*,color='g',clip_on=False)
+...             fig = plt.gcf()
+...             fig.gca().add_artist(circle1)
 >>> #             axarr[j, i].set_xlim([spot[i, j, 0].min(), spot[i, j, 0].max()])
 ... #             axarr[j, i].set_ylim([spot[i, j, 1].min(), spot[i, j, 1].max()])
 ...
@@ -203,21 +207,21 @@
 ```
 
 ---
-scrolled: true
+scrolled: false
 ...
 
 ```python
 >>> # Index of refraction for the common N-BK7 (SCHOTT) glass at wavelengths:
-... n = np.array([[1, 1.5224, 1, 1.5224, 1, 1.5224, 1], # 0.486 um
-...               [1, 1.5187, 1, 1.5187, 1, 1.5187, 1], # 0.546 um
-...               [1, 1.5143, 1, 1.5143, 1, 1.5143, 1]]) # 0.656 um
+... n = np.array([[1, 1.7640, 1, 1.6775, 1, 1.7640, 1], # 0.486 um
+...               [1, 1.7574, 1, 1.6688, 1, 1.7574, 1], # 0.546 um
+...               [1, 1.7496, 1, 1.6591, 1, 1.7496, 1]]) # 0.656 um
 ...
 >>> Nsteps = len(n[0, :])
 ...
 >>> bounds = [(1/1700, 1/300), (-1/300, -1/1700), (-1/300, -1/1700), (1/1700, 1/300), (1/1700, 1/300), (-1/300, -1/1700), (0, 0),
 ...           (0, 0), (0, 300), (0, 300), (0, 300), (0, 300), (0, 300), (1000, 1500)]
 ...
->>> result = differential_evolution(costFunction, bounds, maxiter = 1)
+>>> result = differential_evolution(costFunction, bounds, maxiter = 20)
 >>> print(result)
 ...
 >>> fitnessFactor = costFunction(result.x, plotyn=True)
@@ -225,40 +229,6 @@ scrolled: true
 >>> print('\n fitnessFactor', fitnessFactor)
 >>> print('\n R', 1/result.x[:Nsteps-1])
 >>> print('\n t', result.x[Nsteps:])
-     fun: 0.059585556463146103
- message: 'Maximum number of iterations has been exceeded.'
-     jac: array([  1.21329955e+02,   1.15346319e+02,   6.22621611e+01,
-         7.24377067e+01,   1.04332405e+02,   1.73248503e+02,
-         3.38015033e-03,   9.29811783e-08,  -2.97255276e-05,
-        -1.94136374e-05,  -4.14390744e-06,   1.27597932e-04,
-         3.23761851e-05,   2.08381923e-05])
-     nit: 1
-       x: array([  2.06813341e-03,  -6.89156540e-04,  -2.90746915e-03,
-         3.27338851e-03,   9.25958207e-04,  -2.97022778e-03,
-         0.00000000e+00,   0.00000000e+00,   6.30480986e+01,
-         6.87576176e+01,   1.45066585e+02,   7.72613330e+01,
-         2.40637765e+02,   1.34002623e+03])
- success: False
-    nfev: 780
-D:\Program Files\Anaconda3\lib\site-packages\scipy\optimize\_differentialevolution.py:572: RuntimeWarning: invalid value encountered in true_divide
-  return (parameters - self.__scale_arg1) / self.__scale_arg2 + 0.5
-
-
-
-
-
- fitnessFactor 0.0595855564631
-
- R [  483.52780203 -1451.04913253  -343.94173999   305.49383224  1079.96234835
-  -336.67451538]
-
- t [    0.            63.04809862    68.75761763   145.06658505    77.26133305
-   240.63776463  1340.02623116]
-
-<IPython.core.display.Javascript object>
-<IPython.core.display.HTML object>
-<IPython.core.display.Javascript object>
-<IPython.core.display.HTML object>
 ```
 
 ```python
