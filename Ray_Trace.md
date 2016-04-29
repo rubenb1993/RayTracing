@@ -21,7 +21,7 @@
 ...
 >>> def paraxialFocus(c, n, t):
 ...     '''Determine the focus in the paraxial limit by working with the matrix convention.
-...     Returns the '''
+...     Returns the scalar distance f from the last lens in order to be in focus'''
 ...     f = sympy.Symbol('f')
 ...     t = sympy.Matrix(t)
 ...     t[-1] = f
@@ -39,6 +39,12 @@
 ...
 ...
 >>> def incomingBeam(Rmax, Nr, Ntheta, angle):
+...     """Initiliazes the incoming beam.
+...     Creates 5*(1+row#) points equally spaced points per row, with Nr rows and radius Rmax/Nr * (i+1).
+...     angle is used to set the initial angle with the x-axis, in terms of cos(angle).
+...     Returns d \in (len(t), 3, N) (the position matrix at each plane),
+...     Returns u \in (len(t), 3, N) (the angle matrix at each plane),
+...     Returns k \in (3,) (the normalized vector in the direction of the optical axis)"""
 ...     # Circular starting pattern (could also be set to random if needed)
 ...
 ...     r = np.array([])
@@ -48,7 +54,7 @@
 ...         j = (i+1)*5 #increase of 5 points per row
 ...         a = np.array([R]*j)
 ...         r = np.append(r,a)
-...         b = np.linspace(0, 2*np.pi, j, endpoint = False)
+...         b = np.linspace(0, 2*np.pi, j, endpoint = False) #to not include 2pi in the end point.
 ...         theta = np.append(theta, b)
 ...     X, Y = pol2cart(r, theta)
 ...
@@ -68,7 +74,13 @@
 ...
 ...
 >>> def traceRays(c, t, n, d, u, k, Nsteps):
-...     '''Compute the ray paths'''
+...     '''Compute the ray paths through each optical element.
+...     Algorithm worked out by W. Bruce Zimmerman, Ph.D, Indiana University South Bend (http://www.learnoptics.com/).
+...     Inputs: c (vector of reciprocal radii of optical elements), t (vector of distances between optical elements),
+...     n (vector of indices of refraction of each optical element), d (initialized position vector (see incomingBeam)),
+...     u (initialzed angle vector (see incomingBeam)), k (normalized vector along the optical axis),
+...     Nsteps (amount of optical planes)
+...     Returns d: total position vector for each ray with respect to each plane (Nsteps, 3, N_rays).'''
 ...     for i in range(Nsteps):
 ...         # Algorithm to obtain new positions
 ...         e = t[i]*np.dot(k, u[i]) - np.sum(d[0]*u[0], axis = 0) # A scalar for obtaining the total travel distance T
@@ -92,15 +104,26 @@
 ...     return d
 ...
 >>> def fitness(d):
-...     '''Calculate the fitness of the spot in the image plane'''
+...     '''Calculate the fitness of the spot in the image plane, according to the fitness factor introduced in
+...     van Leijenhorst et al. (Biosystems, 1996)
+...     input: d (either vector with images of all the planes or just the last plane).
+...     Returns the scalar value for the fitness'''
 ...     N = len(d[0, 0, :]) # Number of rays
 ...     ind = np.triu_indices(N, k=1) #create array of upper triangular matrix indices
-...     dist = (d[-1, 1, ind[0]] - d[-1, 1, ind[1]])**2 + (d[-1, 0, ind[0]] - d[-1, 0, ind[1]])**2 #create distance vector for i > j
+...     #calculate distance vector for i > j
+...     dist = (d[-1, 1, ind[0]] - d[-1, 1, ind[1]])**2 + (d[-1, 0, ind[0]] - d[-1, 0, ind[1]])**2
 ...     sumDistance = np.sum(dist)
 ...     fitness = np.sqrt(2/(3*N*(3*N-1)) * sumDistance)
 ...     return fitness
 ...
 >>> def costFunction(x, *args):
+...     """The cost function that has to be minimized. Takes vector x composed of curvatures (c) and distances (t).
+...     Additional arguments should be defined. These are: angles, weights, Rmax, Nr, Ntheta, n, plotyn.
+...     See incomingBeam for the structure of Rmax, Nr and Ntheta.
+...     angles is a vector with all the angles that have to be taken into account,
+...     weights an equally long vector with their weights for the cost function.
+...     n is the vector with all the refractive indices, and plotyn is a Boolean denoting whether or not to plot the results.
+...     Returns a scalar fitnessFactor which is to be minimized."""
 ...     Nsteps = len(n)
 ...     c = x[:Nsteps]
 ...     t = x[Nsteps:]
@@ -116,7 +139,8 @@
 ...
 ...
 >>> def plotResults(t, d, k):
-...
+...     """A function to plot the results of all the beams at all the angles.
+...     Aloys will make changes so I don't touch this."""
 ...     # Adjust distance vector to include z-distance
 ...     distance = np.cumsum(t)
 ...     z_addition = np.vstack((np.zeros(3), np.outer(distance, k)))
@@ -137,8 +161,10 @@
 ...     ax = plt.subplot(111)
 ...     ax.scatter(d2[-1,0,:], d2[-1,1,:])
 ...     #axes = plt.gca()
-...     ax.set_xlim([min(d2[-1,0,:]) - (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2, max(d2[-1,0,:]) + (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2])
-...     ax.set_ylim([min(d2[-1,1,:]) - (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2, max(d2[-1,1,:]) + (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2])
+...     ax.set_xlim([min(d2[-1,0,:]) - (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2, \
+...                  max(d2[-1,0,:]) + (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2])
+...     ax.set_ylim([min(d2[-1,1,:]) - (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2, \
+...                  max(d2[-1,1,:]) + (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2])
 ...     plt.show()
 ...     return
 ```
@@ -168,34 +194,6 @@ scrolled: true
 >>> print('\n fitnessFactor', fitnessFactor)
 >>> print('\n R', 1/result.x[:len(n)-1])
 >>> print('\n t', result.x[len(n):])
-     fun: array(0.0)
- message: 'Maximum number of iterations has been exceeded.'
-       x: array([  2.75109745e-03,  -1.29367548e-03,  -2.65831419e-03,
-        -6.33708473e-04,   0.00000000e+00,   0.00000000e+00,
-         2.26488093e+02,   7.29806069e+01,   9.12394176e+01,
-         5.69609632e+02])
-    nfev: 1650
-     jac: array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.])
-     nit: 10
- success: False
-/Users/rubenbiesheuvel/anaconda/lib/python3.5/site-packages/scipy/optimize/_differentialevolution.py:572: RuntimeWarning: invalid value encountered in true_divide
-  return (parameters - self.__scale_arg1) / self.__scale_arg2 + 0.5
-
-
-
-
-
-
-
-
-
-
-
- fitnessFactor 0.0003825496873
-
- R [  363.49130396  -772.99138394  -376.17825715 -1578.01267155]
-
- t [   0.          226.48809277   72.98060692   91.2394176   569.60963236]
 ```
 
 ```python
@@ -239,7 +237,6 @@ scrolled: true
 ```python
 >>> ind = np.triu_indices(5, k=1)
 >>> print(ind)
-(array([0, 0, 0, 0, 1, 1, 1, 2, 2, 3]), array([1, 2, 3, 4, 2, 3, 4, 3, 4, 4]))
 ```
 
 ```python
@@ -249,13 +246,11 @@ scrolled: true
 ```python
 >>> %%timeit
 ... fitness(d)
-100 loops, best of 3: 7.51 ms per loop
 ```
 
 ```python
 >>> %%timeit
 ... fitness_vector(d)
-10000 loops, best of 3: 155 µs per loop
 ```
 
 ```python
@@ -266,7 +261,6 @@ scrolled: true
 >>> print(d2.shape)
 >>> #axes.set_xlim([min(d2[-1,0,:])*1.5, max(d2[-1,0,:])*1.5])
 ... #axes.set_ylim([min(d2[-1,1,:])*1.5, max(d2[-1,1,:])*1.5])
-(6, 3, 100)
 ```
 
 ```python
@@ -278,28 +272,18 @@ scrolled: true
 >>> print(max(d2[-1,0,:])*1.5)
 >>> print(min(d2[-1,1,:])*1.5)
 >>> print(max(d2[-1,1,:])*1.5)
--0.00012170588072
-0.00012004597114
--0.000121290193434
-0.000121290193434
 ```
 
 ```python
 >>> np.sin([0, 0.0075, 0.0150, 0.0225, 0.0300])
-array([ 0.        ,  0.00749993,  0.01499944,  0.0224981 ,  0.0299955 ])
 ```
 
 ```python
 >>> np.triu_indices(3, k=1)
-(array([0, 0, 1]), array([1, 2, 2]))
 ```
 
 ```python
 >>> d[-1, 2, ind[0]]
-array([  2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
-         2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
-         2.27373675e-13,   2.27373675e-13,   2.27373675e-13,
-         2.27373675e-13])
 ```
 
 ```python
