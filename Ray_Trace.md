@@ -141,7 +141,7 @@ The cost function is structured as follows:
 ...
 ...     return fitness
 ...
->>> def costFunction(x, plotyn=False):
+>>> def costFunction(x,*args):
 ...     """The cost function that has to be minimized. Takes vector x composed of curvatures (c) and distances (t).
 ...     Additional arguments must be defined. These are: angles, weights, Rmax, Nr, Ntheta, n, plotyn.
 ...     See incomingBeam for the structure of Rmax, Nr and Ntheta.
@@ -149,20 +149,20 @@ The cost function is structured as follows:
 ...     weights an equally long vector with their weights for the cost function.
 ...     n is the vector with all the refractive indices, and plotyn is a Boolean denoting whether or not to plot the results.
 ...     Returns a scalar fitnessFactor which is to be minimized."""
+...     Nsteps = len(n[0, :])
 ...     c = x[:Nsteps]
 ...     t = x[Nsteps:]
 ...     angles = np.array([0.00300, 0.00225, 0.00150, 0.00075, 0])
 ...     weights = [0.5, 0.125, 0.125, 0.125, 0.125]
-...
 ...     fitnessFactor = 0
-...     spot = np.zeros((len(n), len(angles), 3, 275))
+...     spot = np.zeros((len(n), len(angles), 3, N_rays))
 ...
 ...     for i in range(len(n)):
 ...         for j in range(len(angles)):
-...             d, u, k = incomingBeam(7, 10, 25, angles[j])
-...             d = traceRays(c, t, n[i], d, u, k)
+...             d, u, k = incomingBeam(Rmax, Nr, Ntheta, angles[j])
+...             d = traceRays(c, t, n[i], d, u, k, Nsteps)
 ...             spot[i, j] = d[-1]
-...             fitnessFactor += weights[j] * fitness_vector(d)
+...             fitnessFactor += weights[j] * fitness(d)
 ...
 ...     if plotyn == True:
 ...         plotSpot(spot, angles)
@@ -175,6 +175,8 @@ The cost function is structured as follows:
 ...     fig, axarr = plt.subplots(len(angles), len(n)+1, figsize=(12, 15))
 ...     wavelengths = [0.486, 0.546, 0.656]
 ...
+...
+...
 ...     for i in range(len(spot)):
 ...         axarr[0, i].set_title(r'$\lambda$={}'.format(wavelengths[i]), size=16)
 ...         for j in range(len(spot[0, :])):
@@ -185,29 +187,16 @@ The cost function is structured as follows:
 ...
 ...             dx = [spot[i, j, 0].min(), spot[i, j, 0].max()]
 ...             dy = [spot[i, j, 1].min(), spot[i, j, 1].max()]
-...             middle = (((dx[0]+dx[1])/2), (dy[0]+dy[1])/2)
+...             axarr[j, i].locator_params(nbins=4)
 ...             axarr[j, i].set_xlim(dx)
 ...             axarr[j, i].set_ylim(dy)
 ...             axarr[j, i].set_xticks(dx)
 ...             axarr[j, i].set_yticks(dy)
 ...             plt.axis('equal')
-...             circle = plt.Circle(middle,wavelengths[i]/(2*,color='g',clip_on=False)
-...             fig = plt.gcf()
-...             fig.gca().add_artist(circle1)
->>> #             axarr[j, i].set_xlim([spot[i, j, 0].min(), spot[i, j, 0].max()])
-... #             axarr[j, i].set_ylim([spot[i, j, 1].min(), spot[i, j, 1].max()])
-...
-...
-... #             dx = min(spot[:, :, 0]) - max(spot[:, :, 0])
-... #             dy = min(spot[:, :, 1]) - max(spot[:, :, 1])
-...
-... #             axarr[j, i].set_xlim([])
-... #             axarr[j, i].set_ylim([])
-...
-... #             axarr[j, i].set_xlim([min(d2[-1,0,:]) - (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2, max(d2[-1,0,:]) + (max(d2[-1,0,:]) - min(d2[-1,0,:]))/2])
-... #             axarr[j, i].set_ylim([min(d2[-1,1,:]) - (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2, max(d2[-1,1,:]) + (max(d2[-1,1,:]) - min(d2[-1,1,:]))/2])
+...             plt.axis('square')
 ...
 ...     fig.tight_layout()
+...
 ...     plt.show()
 ...     return
 ...
@@ -243,18 +232,20 @@ scrolled: false
 ...               [1, 1.7574, 1, 1.6688, 1, 1.7574, 1], # 0.546 um
 ...               [1, 1.7496, 1, 1.6591, 1, 1.7496, 1]]) # 0.656 um
 ...
->>> Nsteps = len(n[0, :])
->>> angles= np.sin([0, 0.0075, 0.0150, 0.0225, 0.0300])/10
+>>> angles= np.array([0, 0.0075, 0.0150, 0.0225, 0.0300])/10
 >>> weights = [0.5, 0.125, 0.125, 0.125, 0.125]
->>> Rmax = 5
->>> Nr = 4
+>>> Rmax = 0.1
+>>> Nr = 6
 >>> Ntheta = 25
 >>> plotyn = False
 ...
->>> bounds = [(1/1700, 1/300), (-1/300, -1/1700), (-1/300, -1/1700), (1/1700, 1/300), (1/1700, 1/300), (-1/300, -1/1700), (0, 0),
-...           (0, 0), (0, 300), (0, 300), (0, 300), (0, 300), (0, 300), (1000, 1500)]
+>>> d, u, k = incomingBeam(Rmax, Nr, Ntheta, 0) #make vector to predict amount of rays
+>>> N_rays = len(d[0,0,:])
 ...
->>> result = differential_evolution(costFunction, bounds, args=(angles, weights, Rmax, Nr, Ntheta, n, plotyn), maxiter = 10)
+>>> bounds = [(1/1700, 1/300), (-1/300, -1/1700), (-1/300, -1/1700), (1/1700, 1/300), (1/1700, 1/300), (-1/300, -1/1700), (0, 0),
+...           (0, 0), (0, 600), (0, 600), (0, 600), (0, 600), (0, 600), (2000, 2000)]
+...
+>>> result = differential_evolution(costFunction, bounds, args=(angles, weights, Rmax, Nr, Ntheta, n, plotyn), maxiter = 50)
 >>> print(result)
 ...
 >>> plotyn = True
@@ -263,3 +254,11 @@ scrolled: false
 >>> print('\n fitnessFactor', fitnessFactor)
 >>> print('\n R', 1/result.x[:Nsteps-1])
 >>> print('\n t', result.x[Nsteps:])
+>>> print('\n N_rays', len(d[0,0,:]))
+```
+
+Since the code does not converge to a global minimum and appears to be stuck in a local minimum, here would be some code to try to find the focus of the other 2 beams using the paraxialFocus function to estimate the focal point. Other optimizations as well as a different fitness function could be tried out, where a genetic algorithm is apparantly prone to finding local minima, and the fitness function might tend towards 1 spot in focus.
+
+```python
+
+```
