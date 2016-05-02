@@ -256,42 +256,6 @@ scrolled: false
 >>> print('\n R', 1/result.x[:Nsteps-1])
 >>> print('\n t', result.x[Nsteps:])
 >>> print('\n N_rays', len(d[0,0,:]))
- success: False
-     jac: array([  3.71206054e+01,   1.03131714e+01,   3.10298641e+01,
-         9.24000075e+00,   3.75117268e+01,   1.17658251e+01,
-         7.40984856e-05,   1.19262239e-09,  -1.08311797e-07,
-         9.09103522e-08,   1.46302241e-07,   1.81391360e-06,
-        -2.41560244e-08,   1.09905574e-07])
- message: 'Maximum number of iterations has been exceeded.'
-    nfev: 3180
-       x: array([  7.08079596e-04,  -8.18281888e-04,  -2.18766579e-03,
-         1.60899174e-03,   2.21386528e-03,  -7.45012176e-04,
-         0.00000000e+00,   0.00000000e+00,   1.75275902e+02,
-         5.41621668e+01,   6.47954202e+01,   7.37149663e+01,
-         6.16747207e+01,   2.00000000e+03])
-     nit: 10
-     fun: 0.00070310902313375375
-D:\Program Files\Anaconda3\lib\site-packages\scipy\optimize\_differentialevolution.py:572: RuntimeWarning: invalid value encountered in true_divide
-  return (parameters - self.__scale_arg1) / self.__scale_arg2 + 0.5
-
-
-
-
-
- fitnessFactor 0.000703109023134
-
- R [ 1412.27060613 -1222.07275402  -457.10821286   621.50723019   451.69866796
- -1342.25994168]
-
- t [    0.           175.2759015     54.16216675    64.7954202     73.71496632
-    61.67472069  2000.        ]
-
- N_rays 105
-
-<IPython.core.display.Javascript object>
-<IPython.core.display.HTML object>
-<IPython.core.display.Javascript object>
-<IPython.core.display.HTML object>
 ```
 
 Since the code does not converge to a global minimum and appears to be stuck in a local minimum, here would be some code to try to find the focus of the other 2 beams using the paraxialFocus function to estimate the focal point. Other optimizations as well as a different fitness function could be tried out, where a genetic algorithm is apparantly prone to finding local minima, and the fitness function might tend towards 1 spot in focus.
